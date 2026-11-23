@@ -14,6 +14,7 @@ Berikut checklist ketentuan DEMO beserta bukti pada kode project.
   - Model `Media` mendefinisikan relasi many-to-many ke `Pengguna` melalui `media_pengguna` di [`Media.php`](app/Models/Media.php#L18-L21).
   - Model `Pengguna` mendefinisikan relasi many-to-many ke `Media` di [`Pengguna.php`](app/Models/Pengguna.php#L13-L16).
   - Peminjaman dicatat terpisah pada model [`Peminjaman.php`](app/Models/Peminjaman.php) dan relasi `hasMany` pada [`Media.php`](app/Models/Media.php#L23-L26) serta [`Pengguna.php`](app/Models/Pengguna.php#L18-L21). Koleksi tetap many-to-many; peminjaman eksklusif memakai `is_available`.
+  - Saat pinjam, media otomatis ditambahkan ke koleksi peminjam sehingga muncul pada `GET /api/media`. Saat dikembalikan, relasi yang dibuat khusus oleh peminjaman dihapus; koleksi yang sudah ada sebelumnya tetap dipertahankan. Logika ada di [`PeminjamanController.php`](app/Http/Controllers/PeminjamanController.php).
 
 - [x] **Migration entitas dan pivot table**
   - Tabel `penggunas` beserta kolom nama dan email dibuat di [`2026_11_22_172526_create_penggunas_table.php`](database/migrations/2026_11_22_172526_create_penggunas_table.php#L14-L19).
@@ -21,6 +22,7 @@ Berikut checklist ketentuan DEMO beserta bukti pada kode project.
   - Pivot `media_pengguna` memiliki foreign key ke kedua tabel dan primary key gabungan di [`2026_11_22_172541_create_media_pengguna_table.php`](database/migrations/2026_11_22_172541_create_media_pengguna_table.php#L14-L18).
   - Status ketersediaan ditambahkan lewat [`2026_11_23_000000_add_is_available_to_media_table.php`](database/migrations/2026_11_23_000000_add_is_available_to_media_table.php).
   - Riwayat peminjaman dengan foreign key pengguna/media serta waktu pinjam/kembali dibuat di [`2026_11_23_000001_create_peminjaman_table.php`](database/migrations/2026_11_23_000001_create_peminjaman_table.php).
+  - Penanda apakah media sudah berada di koleksi sebelum dipinjam dibuat di [`2026_11_23_000002_add_collection_existed_to_peminjaman_table.php`](database/migrations/2026_11_23_000002_add_collection_existed_to_peminjaman_table.php).
 
 - [x] **Menambahkan pengguna melalui POST**
   - `POST /api/penggunas` memakai Form Request untuk validasi nama dan email, lalu mengembalikan `201 Created` di [`PenggunaController.php`](app/Http/Controllers/PenggunaController.php#L17-L22).
@@ -126,8 +128,9 @@ Gunakan base URL `http://127.0.0.1:8000/api`. Untuk request POST/PATCH, pilih **
 | 9 | `DELETE /penggunas/1/media/2` | Hapus relasi yang dibuat pada langkah 8. | `200 OK` |
 | 10 | `DELETE /media/{idBaru}` | Hapus media yang dibuat pada langkah 2 sebelum membuat pinjaman. | `200 OK` |
 | 11 | `POST /peminjaman` | Body: `{"pengguna_id":2,"media_id":1}`; ganti `2` dengan ID pengguna hasil langkah 6. ID 1 adalah media seed yang tersedia. | `201 Created`, status `dipinjam`, `is_available: false` |
-| 12 | `GET /penggunas/{idPenggunaBaru}` | Pastikan `peminjaman` tampil dengan status `dipinjam`. | `200 OK` |
-| 13 | `PATCH /peminjaman/{idPeminjaman}/kembali` | Gunakan ID hasil langkah 11. | `200 OK`, status `dikembalikan`, `is_available: true` |
+| 12 | `GET /media` | Pastikan `pengguna` pada media ID 1 mencantumkan peminjam dari langkah 11. | `200 OK` |
+| 13 | `GET /penggunas/{idPenggunaBaru}` | Pastikan `peminjaman` tampil dengan status `dipinjam`. | `200 OK` |
+| 14 | `PATCH /peminjaman/{idPeminjaman}/kembali` | Gunakan ID hasil langkah 11. | `200 OK`, status `dikembalikan`, `is_available: true`; relasi koleksi otomatis yang dibuat saat pinjam dihapus |
 
 ### Failure path
 
@@ -139,7 +142,7 @@ Gunakan base URL `http://127.0.0.1:8000/api`. Untuk request POST/PATCH, pilih **
 | 4 | `POST /penggunas/1/media/2` | Kirim dua kali tanpa menjalankan DELETE langkah happy path di antaranya. | Permintaan pertama `200 OK`, kedua `409 Conflict` |
 | 5 | `DELETE /penggunas/1/media/2` | Jalankan lagi setelah relasi sudah dihapus pada happy path langkah 8. | `404 Not Found` |
 | 6 | `POST /peminjaman` | Setelah happy path langkah 11, kirim body `{"pengguna_id":1,"media_id":1}` untuk mencoba meminjam media yang sama sebagai pengguna lain. | `409 Conflict`; media tidak dipinjam dua kali bersamaan |
-| 7 | `PATCH /peminjaman/{idPeminjaman}/kembali` | Jalankan lagi setelah pinjaman dikembalikan pada happy path langkah 13. | `409 Conflict`; pinjaman sudah dikembalikan |
+| 7 | `PATCH /peminjaman/{idPeminjaman}/kembali` | Jalankan lagi setelah pinjaman dikembalikan pada happy path langkah 14. | `409 Conflict`; pinjaman sudah dikembalikan |
 | 8 | `POST /penggunas` | Body dengan email yang sudah dipakai. | `422 Unprocessable Content`; email duplikat |
 | 9 | `DELETE /media/1` | Gunakan media yang sudah memiliki riwayat pinjaman. | `409 Conflict`; riwayat peminjaman dipertahankan |
 

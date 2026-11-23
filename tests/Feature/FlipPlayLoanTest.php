@@ -39,6 +39,10 @@ class FlipPlayLoanTest extends TestCase
             'is_available' => false,
         ]);
 
+        $this->getJson('/api/media')
+            ->assertOk()
+            ->assertJsonPath('data.0.pengguna.0.id', $pengguna->id);
+
         $this->getJson("/api/penggunas/{$pengguna->id}")
             ->assertOk()
             ->assertJsonPath('data.peminjaman.0.status', 'dipinjam');
@@ -52,6 +56,10 @@ class FlipPlayLoanTest extends TestCase
             'id' => $media->id,
             'is_available' => true,
         ]);
+
+        $this->getJson('/api/media')
+            ->assertOk()
+            ->assertJsonPath('data.0.pengguna', []);
 
         $this->patchJson("/api/peminjaman/{$peminjamanId}/kembali")
             ->assertConflict();
@@ -86,6 +94,31 @@ class FlipPlayLoanTest extends TestCase
         ])->assertConflict();
 
         $this->assertDatabaseCount('peminjaman', 1);
+    }
+
+    public function test_return_keeps_a_preexisting_collection_entry(): void
+    {
+        $pengguna = Pengguna::create([
+            'nama' => 'Pengguna Koleksi',
+            'email' => 'koleksi@example.com',
+        ]);
+        $media = Media::create([
+            'judul' => 'Film Koleksi',
+            'jenis' => 'Film',
+        ]);
+        $pengguna->media()->attach($media->id);
+
+        $peminjamanId = $this->postJson('/api/peminjaman', [
+            'pengguna_id' => $pengguna->id,
+            'media_id' => $media->id,
+        ])->assertCreated()->json('data.id');
+
+        $this->patchJson("/api/peminjaman/{$peminjamanId}/kembali")->assertOk();
+
+        $this->assertDatabaseHas('media_pengguna', [
+            'pengguna_id' => $pengguna->id,
+            'media_id' => $media->id,
+        ]);
     }
 
     public function test_user_can_be_created_with_post(): void

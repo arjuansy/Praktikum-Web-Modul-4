@@ -9,7 +9,7 @@ class Peminjaman extends Model
 {
     protected $table = 'peminjaman';
 
-    protected $fillable = ['pengguna_id', 'media_id', 'borrowed_at', 'returned_at'];
+    protected $fillable = ['pengguna_id', 'media_id', 'borrowed_at', 'returned_at', 'collection_existed'];
 
     protected $casts = [
         'borrowed_at' => 'datetime',

@@ -6,6 +6,7 @@ use App\Http\Requests\StorePeminjamanRequest;
 use App\Http\Resources\PeminjamanResource;
 use App\Models\Media;
 use App\Models\Peminjaman;
+use App\Models\Pengguna;
 use Illuminate\Support\Facades\DB;
 
 class PeminjamanController extends Controller
@@ -24,11 +25,17 @@ class PeminjamanController extends Controller
                 return response()->json(['message' => 'Media sedang dipinjam'], 409);
             }
 
+            $pengguna = Pengguna::findOrFail($data['pengguna_id']);
+            $collectionExisted = $pengguna->media()->whereKey($data['media_id'])->exists();
+
             $peminjaman = Peminjaman::create([
                 'pengguna_id' => $data['pengguna_id'],
                 'media_id' => $data['media_id'],
                 'borrowed_at' => now(),
+                'collection_existed' => $collectionExisted,
             ]);
+
+            $pengguna->media()->syncWithoutDetaching([$data['media_id']]);
 
             return (new PeminjamanResource($peminjaman->load(['pengguna', 'media'])))
                 ->response()
@@ -49,6 +56,9 @@ class PeminjamanController extends Controller
             }
 
             $peminjaman->media()->update(['is_available' => true]);
+            if (! $peminjaman->collection_existed) {
+                $peminjaman->pengguna->media()->detach($peminjaman->media_id);
+            }
 
             return (new PeminjamanResource($peminjaman->fresh()->load(['pengguna', 'media'])))
                 ->response()
