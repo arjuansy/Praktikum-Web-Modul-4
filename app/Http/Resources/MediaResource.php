@@ -20,6 +20,7 @@ class MediaResource extends JsonResource
             'jenis' => $this->jenis,
             'genre' => $this->genre,
             'tahun' => $this->tahun,
+            'is_available' => $this->is_available,
             'pengguna' => $this->whenLoaded('penggunas', fn () => $this->penggunas->map(fn ($pengguna) => [
                 'id' => $pengguna->id,
                 'nama' => $pengguna->nama,

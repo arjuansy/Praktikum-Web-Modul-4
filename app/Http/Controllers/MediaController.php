@@ -40,6 +40,10 @@ class MediaController extends Controller
 
     public function destroy(Media $media)
     {
+        if ($media->peminjamans()->exists()) {
+            return response()->json(['message' => 'Media memiliki riwayat peminjaman dan tidak dapat dihapus'], 409);
+        }
+
         $media->delete();
 
         return response()->json(['message' => 'Media berhasil dihapus']);

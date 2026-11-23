@@ -24,7 +24,9 @@ class PenggunaResource extends JsonResource
                 'jenis' => $media->jenis,
                 'genre' => $media->genre,
                 'tahun' => $media->tahun,
+                'is_available' => $media->is_available,
             ])),
+            'peminjaman' => PeminjamanResource::collection($this->whenLoaded('peminjamans')),
         ];
     }
 }
